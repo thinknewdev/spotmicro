@@ -1,0 +1,56 @@
+{
+  "_note": "Full calibration from 2026-07-05 interactive session. Trust this over defaults.",
+  "leg_segments_cm": {
+    "thigh_hip_to_knee": 11.0,
+    "shank_knee_to_ankle": 13.5,
+    "foot_pad_contact": 14.5,
+    "source": "user ruler measurement 2026-07-05; config had 10.75/13.0"
+  },
+  "channel_map_fixes": {
+    "front_shoulder_left": 7,
+    "front_leg_left": 6,
+    "_note": "these two were CROSSED in the original spotmicroai.json (now fixed there too)"
+  },
+  "standing_pose": {
+    "rear_shoulder_left": 90,
+    "rear_shoulder_right": 90,
+    "front_shoulder_left": 108,
+    "front_shoulder_right": 108,
+    "rear_leg_left": 150,
+    "rear_leg_right": 30,
+    "front_leg_left": 130,
+    "front_leg_right": 50,
+    "rear_feet_left": 118,
+    "rear_feet_right": 82,
+    "front_feet_left": 90,
+    "front_feet_right": 120,
+    "_shoulders": "pin shoulders through ALL motion phases (stand/fold); only thighs+knees fold"
+  },
+  "controller_params": {
+    "loop_hz": 20,
+    "kp": 0.15,
+    "deadband_deg": 4.0,
+    "slew_deg_per_cycle": 0.9,
+    "offset_clamp_deg": 8.0,
+    "pop_slices": 18,
+    "tip_guard": "3s rolling mean > 15deg (accel tilt lies during motion)",
+    "roll_only": "pitch correction TWISTS pairs due to mirrored servo conventions"
+  },
+  "walking_gait": {
+    "_approved": "2026-07-07 user: this looks better",
+    "swing_fwd": 13.0,
+    "swing_back": 17.0,
+    "lift": 26.0,
+    "lift_bias": {
+      "rear_feet_right": 10.0
+    },
+    "push_ext": 11.0,
+    "cycle_t": 2.0,
+    "walk_sway": 3.5,
+    "fwd_bias": 0.0,
+    "arm_bob": 4.0,
+    "lift_curve": "symmetric sin (skewed curve looked wrong on rear legs)",
+    "turn": "inner-side scale 1-2*|turn|, floor -0.5; presets +/-0.65 with 25% slower cycle",
+    "notes": "rear-right foot may still scuff slightly - suspect that servo mechanically (chronic weak corner); software remedies exhausted"
+  }
+}

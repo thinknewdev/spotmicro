@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>SpotMicro Control</title>
+<style>
+  :root {
+    --bg: #101318; --panel: #1a1f27; --edge: #2a3140;
+    --text: #e6ebf2; --dim: #8b95a6; --accent: #4c8dff;
+    --good: #3ecf8e; --warn: #ffb347; --bad: #ff5d6c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 12px; gap: 12px;
+  }
+  header { display: flex; align-items: baseline; gap: 10px; width: 100%; max-width: 560px; }
+  header h1 { font-size: 20px; font-weight: 700; }
+  #state {
+    margin-left: auto; font-size: 14px; font-weight: 700; letter-spacing: .06em;
+    padding: 4px 12px; border-radius: 999px; background: var(--panel); border: 1px solid var(--edge);
+  }
+  #state.STAND { color: var(--good); } #state.WALK { color: var(--accent); }
+  #state.SIT { color: var(--warn); } #state.DANCE { color: var(--warn); } #state.REST { color: var(--dim); }
+
+  .panel {
+    width: 100%; max-width: 560px; background: var(--panel);
+    border: 1px solid var(--edge); border-radius: 14px; overflow: hidden;
+  }
+  #cam { width: 100%; aspect-ratio: 16/9; border: 0; display: block; background: #000; }
+
+  .stats { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; }
+  .stat { padding: 10px 8px; text-align: center; border-right: 1px solid var(--edge); }
+  .stat:last-child { border-right: 0; }
+  .stat .label { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .08em; }
+  .stat .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  #distance.near { color: var(--bad); }
+  #distance.close { color: var(--warn); }
+
+  .pad {
+    display: grid; gap: 10px; padding: 14px;
+    grid-template-columns: repeat(3, 1fr); grid-template-areas:
+      "left fwd right"
+      ".    back .   ";
+  }
+  .actions { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding: 0 14px 14px; }
+  button {
+    font: inherit; font-weight: 700; color: var(--text);
+    background: #232a36; border: 1px solid var(--edge); border-radius: 12px;
+    padding: 16px 8px; font-size: 16px; cursor: pointer; touch-action: manipulation;
+    transition: transform .06s, background .12s;
+  }
+  button:active { transform: scale(.96); background: var(--accent); }
+  button.busy { opacity: .45; pointer-events: none; }
+  #b-fwd { grid-area: fwd; } #b-back { grid-area: back; }
+  #b-left { grid-area: left; } #b-right { grid-area: right; }
+  .actions .stand { color: var(--good); } .actions .rest { color: var(--dim); }
+  #toast {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    background: var(--panel); border: 1px solid var(--edge); border-radius: 10px;
+    padding: 8px 16px; font-size: 14px; opacity: 0; transition: opacity .25s; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>🐕 SpotMicro</h1>
+    <span id="state">…</span>
+  </header>
+
+  <div class="panel">
+    <iframe id="cam" allow="autoplay" title="robot camera"></iframe>
+  </div>
+
+  <div class="panel">
+    <div class="stats">
+      <div class="stat">
+        <div class="label">Proximity</div>
+        <div class="value" id="distance">—</div>
+      </div>
+      <div class="stat">
+        <div class="label">Roll</div>
+        <div class="value" id="roll">—</div>
+      </div>
+      <div class="stat">
+        <div class="label">Pitch</div>
+        <div class="value" id="pitch">—</div>
+      </div>
+      <div class="stat">
+        <div class="label">Power</div>
+        <div class="value" id="power">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="pad">
+      <button id="b-left"  onclick="cmd('left', {cycles: 6})">↰ Left</button>
+      <button id="b-fwd"   onclick="cmd('walk', {cycles: 6})">▲ Forward</button>
+      <button id="b-right" onclick="cmd('right', {cycles: 6})">↱ Right</button>
+      <button id="b-back"  onclick="cmd('walk', {cycles: 6, dir: -1})">▼ Backward</button>
+    </div>
+    <div class="actions">
+      <button class="stand" onclick="cmd('stand')">Stand</button>
+      <button onclick="cmd('sit')">Sit</button>
+      <button onclick="cmd('wave')">Wave 👋</button>
+      <button onclick="cmd('dance')">Dance 🕺</button>
+      <button class="rest" onclick="cmd('rest')">Rest</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+<script>
+  const HOST = location.hostname;
+  document.getElementById('cam').src = `http://${HOST}:8889/cam/`;
+
+  const toast = (msg) => {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.style.opacity = 1;
+    clearTimeout(el._t); el._t = setTimeout(() => el.style.opacity = 0, 1800);
+  };
+
+  async function cmd(name, params = {}) {
+    const q = new URLSearchParams(params).toString();
+    try {
+      const r = await fetch(`/motion/${name}${q ? '?' + q : ''}`, { method: 'POST' });
+      const d = await r.json();
+      toast(d.error ? `⚠ ${d.error}` : `sent: ${d.cmd}${d.turn ? ' turn ' + d.turn : ''}`);
+    } catch (e) { toast('⚠ robot unreachable'); }
+  }
+
+  const fmt = (v, unit) => (v === null || v === undefined) ? '—' : `${(+v).toFixed(1)}${unit}`;
+
+  async function poll() {
+    try {
+      const s = await (await fetch('/motion/status')).json();
+      const st = document.getElementById('state');
+      st.textContent = s.state || '?';
+      st.className = s.state || '';
+      document.getElementById('roll').textContent = fmt(s.roll, '°');
+      document.getElementById('pitch').textContent = fmt(s.pitch, '°');
+      const pw = document.getElementById('power');
+      pw.textContent = (s.throttled === '0x0') ? 'OK' : s.throttled;
+      pw.style.color = (s.throttled === '0x0') ? 'var(--good)' : 'var(--bad)';
+      // busy-dim the motion pad while a walk runs
+      const busy = s.state === 'WALK';
+      for (const id of ['b-fwd', 'b-back', 'b-left', 'b-right'])
+        document.getElementById(id).classList.toggle('busy', busy);
+    } catch (e) { document.getElementById('state').textContent = 'offline'; }
+    try {
+      const p = await (await fetch('/proximity')).json();
+      const el = document.getElementById('distance');
+      if (p.distance_cm === null || p.distance_cm === undefined) { el.textContent = '—'; el.className = 'value'; }
+      else {
+        el.textContent = `${p.distance_cm.toFixed(0)} cm`;
+        el.className = 'value' + (p.distance_cm < 15 ? ' near' : p.distance_cm < 40 ? ' close' : '');
+      }
+    } catch (e) { /* sensor offline */ }
+  }
+  poll();
+  setInterval(poll, 1000);
+</script>
+</body>
+</html>
