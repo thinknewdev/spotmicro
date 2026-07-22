@@ -1,0 +1,12 @@
+[Unit]
+Description=Push external webcam to SpotMicro mediamtx (rtsp://192.168.1.104:8554/webcam)
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=/usr/bin/ffmpeg -loglevel warning -f v4l2 -input_format mjpeg -video_size 1280x720 -framerate 30 -i /dev/video2 -c:v libx264 -preset ultrafast -tune zerolatency -pix_fmt yuv420p -b:v 2M -g 60 -f rtsp rtsp://192.168.1.104:8554/webcam
+Restart=always
+RestartSec=5
+RuntimeMaxSec=900
+
+[Install]
+WantedBy=default.target

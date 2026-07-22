@@ -1,0 +1,12 @@
+venv/
+**/venv/
+__pycache__/
+*.pyc
+# nested community repo (own git history, upstream = gitlab basic-runtime)
+spotmicroai/
+robot-snapshot/output.mp4
+robot-snapshot/.git/
+# never commit the robot's keys
+robot-snapshot/.ssh/
+**/id_rsa
+**/*.pem

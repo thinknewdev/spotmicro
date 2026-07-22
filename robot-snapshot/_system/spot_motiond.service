@@ -1,0 +1,14 @@
+[Unit]
+Description=SpotMicro Motion Daemon (stand/walk/balance state machine)
+After=network.target
+
+[Service]
+User=spotmicro
+ExecStart=/home/spotmicro/venv/bin/python -u /home/spotmicro/spot_motiond.py
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/spot_motiond.log
+StandardError=append:/var/log/spot_motiond.log
+
+[Install]
+WantedBy=multi-user.target
